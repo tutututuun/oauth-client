@@ -5,18 +5,19 @@ import (
 	"html/template"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 func createGetParameter(param map[string]string) string {
 
-	var getParam string
+	var getParam []string
 	for k, v := range param {
-		getParam += fmt.Sprintf("%s=%s", k, v)
+		getParam = append(getParam, fmt.Sprintf("%s=%s", k, v))
 	}
-	return getParam
+	return strings.Join(getParam, "&")
 }
 
-var templates = template.Must(template.ParseFiles("login.html"))
+var templates = template.Must(template.ParseFiles("index.html"))
 
 func renderTemplate(w http.ResponseWriter, tmpl string, value interface{}) {
 	fv := reflect.ValueOf(value)

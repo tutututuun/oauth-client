@@ -29,7 +29,7 @@ var tokenInfo TokenResponse
 var clientInfo = Client{
 	id:          "1234",
 	name:        "test",
-	redirectURL: "http://localhost:10080/callback",
+	redirectURL: "http://localhost:9000/callback",
 	secret:      "secret",
 }
 
@@ -39,5 +39,6 @@ var authSeverInfo = Auth{
 }
 
 var protectedResource = Resource{
-	resourceEndPoint: "http://localhost:18080/resource",
+	//テストなので、クライアントと同じポートで上げた
+	resourceEndPoint: "http://localhost:9000/resource",
 }

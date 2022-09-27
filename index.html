@@ -1,0 +1,18 @@
+<h1>OAuth Client</h1>
+<h2>Access token value</h2>
+<p>{{.Token}}</p>
+<h2>Refresh token value</h2>
+<p>{{.RefreshToken}}</p>
+<h2>Requested Permissions</h2>
+<p>{{.Scope}}</p>
+<form action="/client" method="POST">
+    <div>
+        <input type="submit" value="Get OAuth Token">
+    </div>
+</form>
+
+<form action="/fetch_resource" method="POST">
+    <div>
+        <input type="submit" value="Get Protected Resource">
+    </div>
+</form>
