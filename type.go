@@ -1,5 +1,12 @@
 package main
 
+const (
+	NUM_CODE_VERITIER     = 80
+	CODE_CHALLENGE_METHOD = "S256"
+	RESPONSE_TYPE         = "code"
+	SCOPE                 = "read"
+)
+
 type Client struct {
 	id          string
 	name        string
@@ -23,7 +30,9 @@ type TokenResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-var hasToken bool = false
+var CODE_VERITIER = ""
+var STATE = ""
+var HAS_TOKEN = false
 var tokenInfo TokenResponse
 
 var clientInfo = Client{

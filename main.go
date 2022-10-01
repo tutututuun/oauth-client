@@ -25,13 +25,20 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func clientHandler(w http.ResponseWriter, r *http.Request) {
-	state := uuid.New().String()
+	HAS_TOKEN = false
+	STATE = uuid.New().String()
+
+	CODE_VERITIER = randomString(NUM_CODE_VERITIER)
+	code_challenge := base64URLEncode(CODE_VERITIER)
+
 	getParam := createGetParameter(map[string]string{
-		"response_type": "code",
-		"client_id":     clientInfo.id,
-		"redirect_uri":  clientInfo.redirectURL,
-		"score":         "read",
-		"state":         state,
+		"response_type":         RESPONSE_TYPE,
+		"client_id":             clientInfo.id,
+		"redirect_uri":          clientInfo.redirectURL,
+		"scope":                 SCOPE,
+		"state":                 STATE,
+		"code_challenge":        code_challenge,
+		"code_challenge_method": CODE_CHALLENGE_METHOD,
 	})
 	endpoint := authSeverInfo.authorizationEndPoint + "?" + getParam
 	fmt.Println("Request:", endpoint)
@@ -41,21 +48,37 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
+	cookie, err := r.Cookie("session")
+	if err != nil {
+		fmt.Println("Error cookies: ", err.Error())
+		sorryPage(w, err.Error())
+		return
+	}
+
 	code := query.Get("code")
+	state := query.Get("state")
+	if state != STATE {
+		fmt.Println("Error state: Invalid state")
+		sorryPage(w, fmt.Sprintf("Invalid state: %s", state))
+		return
+	}
 	postParam := url.Values{}
 	postParam.Set("grant_type", "authorization_code")
 	postParam.Add("code", code)
 	postParam.Add("redirect_uri", clientInfo.redirectURL)
+	postParam.Add("code_verifier", CODE_VERITIER)
 
 	req, _ := http.NewRequest("POST", authSeverInfo.tokenEndPoint, strings.NewReader(postParam.Encode()))
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth(clientInfo.id, clientInfo.secret)
+	req.AddCookie(cookie)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error Request:", err)
+		sorryPage(w, fmt.Sprintf("Error Request: %s", err.Error()))
 		return
 	}
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -63,17 +86,19 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		json.Unmarshal(body, &tokenInfo)
-		hasToken = true
+		HAS_TOKEN = true
 	} else {
 		fmt.Printf("Unable to fetch access token, serverrespomce: %d\n", resp.StatusCode)
+		sorryPage(w, fmt.Sprintf("Unable to fetch access token, serverrespomce: %d\n", resp.StatusCode))
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
 func fetchResourceHandler(w http.ResponseWriter, r *http.Request) {
-	if !hasToken {
+	if !HAS_TOKEN {
 		fmt.Println("error: Missing access token.")
+		sorryPage(w, "error: Missing access token.")
 		return
 	}
 	req, _ := http.NewRequest("POST", protectedResource.resourceEndPoint, nil)
@@ -105,9 +130,11 @@ func fetchResourceHandler(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		json.Unmarshal(body, &tokenInfo)
-		hasToken = true
+		HAS_TOKEN = true
 	} else {
 		fmt.Printf("Unable to fetch access token, serverrespomce: %d\n", resp.StatusCode)
+		sorryPage(w, fmt.Sprintf("Unable to fetch access token, serverrespomce: %d\n", resp.StatusCode))
+		HAS_TOKEN = false
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusFound)
