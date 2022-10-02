@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -104,11 +107,17 @@ func fetchResourceHandler(w http.ResponseWriter, r *http.Request) {
 	req, _ := http.NewRequest("POST", protectedResource.resourceEndPoint, nil)
 	req.Header.Add("Authorization", "Bearer "+tokenInfo.AccessToken)
 	client := &http.Client{}
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Bad request: ", err.Error())
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		body, _ := ioutil.ReadAll(resp.Body)
 		defer resp.Body.Close()
 		fmt.Println(body)
+		w.Write(body)
 		return
 	}
 	// 保護対象リソースからデータを取得できない時は、
@@ -142,8 +151,42 @@ func fetchResourceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func resourceHandler(w http.ResponseWriter, r *http.Request) {
-	//TODO: 保護対象リソースは、OAuthサーバにトークンの検証を行う。
-	fmt.Println("Resource OK!")
+	bearerToken := r.Header.Get("Authorization")
+	match, _ := regexp.MatchString(`Bearer\s`, bearerToken)
+	if !match {
+		log.Println("Invalid token format.")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	token := strings.Replace(bearerToken, "Bearer ", "", 1)
+	tokenParts := strings.Split(token, ".")
+	payload_b, _ := base64.URLEncoding.DecodeString(tokenParts[1])
+	type _Payload struct {
+		Iss string `json:"iss"`
+		Sub string `json:"sub"`
+		Aud string `json:"aud"`
+		Iat int64  `json:"iat"`
+		Exp int64  `json:"exp"`
+		Jti string `json:"jti"`
+	}
+	var payload _Payload
+	err := json.Unmarshal(payload_b, &payload)
+	if err != nil {
+		log.Println("Invalid payload format.")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if payload.Iss == "http://localhost:8080/" && payload.Aud == "http://localhost:9000" {
+		if now := time.Now().Unix(); payload.Iat <= now && payload.Exp >= now {
+			fmt.Println("Resource OK!")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("Resource OK! Fooooooooooooooo!"))
+			return
+		}
+	}
+	log.Println("Resource NG!")
+	w.WriteHeader(http.StatusBadRequest)
+	return
 }
 
 func main() {

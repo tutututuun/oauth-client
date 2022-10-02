@@ -48,6 +48,6 @@ var authSeverInfo = Auth{
 }
 
 var protectedResource = Resource{
-	//テストなので、クライアントと同じポートで上げた
+	//テストなので、クライアントと同じポートで上げた。
 	resourceEndPoint: "http://localhost:9000/resource",
 }
