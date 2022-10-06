@@ -107,12 +107,7 @@ func fetchResourceHandler(w http.ResponseWriter, r *http.Request) {
 	req, _ := http.NewRequest("POST", protectedResource.resourceEndPoint, nil)
 	req.Header.Add("Authorization", "Bearer "+tokenInfo.AccessToken)
 	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Bad request: ", err.Error())
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
+	resp, _ := client.Do(req)
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		body, _ := ioutil.ReadAll(resp.Body)
 		defer resp.Body.Close()
@@ -133,18 +128,18 @@ func fetchResourceHandler(w http.ResponseWriter, r *http.Request) {
 	req.SetBasicAuth(clientInfo.id, clientInfo.secret)
 
 	client = &http.Client{}
-	client.Do(req)
-	body, _ := ioutil.ReadAll(resp.Body)
+	ref_resp, _ := client.Do(req)
+	body, _ := ioutil.ReadAll(ref_resp.Body)
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	if ref_resp.StatusCode >= 200 && ref_resp.StatusCode < 300 {
 		json.Unmarshal(body, &tokenInfo)
 		HAS_TOKEN = true
 	} else {
 		fmt.Printf("Unable to fetch access token, serverrespomce: %d\n", resp.StatusCode)
 		sorryPage(w, fmt.Sprintf("Unable to fetch access token, serverrespomce: %d\n", resp.StatusCode))
+		tokenInfo = TokenResponse{}
 		HAS_TOKEN = false
-		return
 	}
 	http.Redirect(w, r, "/login", http.StatusFound)
 	return
@@ -159,6 +154,11 @@ func resourceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := strings.Replace(bearerToken, "Bearer ", "", 1)
+	if err := RSAVerify(token); err != nil {
+		log.Println("RSAVerify: Invalid token verify.", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	tokenParts := strings.Split(token, ".")
 	payload_b, _ := base64.URLEncoding.DecodeString(tokenParts[1])
 	type _Payload struct {
