@@ -17,6 +17,9 @@ type Client struct {
 type Auth struct {
 	authorizationEndPoint string
 	tokenEndPoint         string
+	revokeEndPoint        string
+
+	introspectEndPoint string // 保護対象リソースが使用する。
 }
 
 type Resource struct {
@@ -45,6 +48,9 @@ var clientInfo = Client{
 var authSeverInfo = Auth{
 	authorizationEndPoint: "http://localhost:8080/auth",
 	tokenEndPoint:         "http://localhost:8080/token",
+	revokeEndPoint:        "http://localhost:8080/revoke",
+
+	introspectEndPoint: "http://localhost:8080/introspect", //保護対象リソースが使用
 }
 
 var protectedResource = Resource{

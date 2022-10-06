@@ -163,7 +163,7 @@ func resourceHandler(w http.ResponseWriter, r *http.Request) {
 	postParam := url.Values{}
 	postParam.Set("token", token)
 
-	req, _ := http.NewRequest("POST", "http://localhost:8080/introspect", strings.NewReader(postParam.Encode()))
+	req, _ := http.NewRequest("POST", authSeverInfo.introspectEndPoint, strings.NewReader(postParam.Encode()))
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth("abcd", "terces")
@@ -215,7 +215,11 @@ func resourceHandler(w http.ResponseWriter, r *http.Request) {
 		if now := time.Now().Unix(); payload.Iat <= now && payload.Exp >= now {
 			fmt.Println("Resource OK!")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Resource OK! Fooooooooooooooo!"))
+			renderTemplate(w, "resource", struct {
+				Message string
+			}{
+				Message: "Resource OK! Fooooooooooooooo!",
+			})
 			return
 		}
 	}
@@ -224,11 +228,33 @@ func resourceHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func revokeHandler(w http.ResponseWriter, r *http.Request) {
+	postParam := url.Values{}
+	postParam.Set("token", tokenInfo.AccessToken)
+
+	req, _ := http.NewRequest("POST", authSeverInfo.revokeEndPoint, strings.NewReader(postParam.Encode()))
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(clientInfo.id, clientInfo.secret)
+
+	client := &http.Client{}
+	_, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error Request:", err)
+		sorryPage(w, fmt.Sprintf("Error Request: %s", err.Error()))
+		return
+	}
+	tokenInfo.AccessToken = ""
+	HAS_TOKEN = false
+	http.Redirect(w, r, "/login", http.StatusFound)
+}
+
 func main() {
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/client", clientHandler)
 	http.HandleFunc("/callback", callbackHandler)
 	http.HandleFunc("/fetch_resource", fetchResourceHandler)
 	http.HandleFunc("/resource", resourceHandler)
+	http.HandleFunc("/revoke", revokeHandler)
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }

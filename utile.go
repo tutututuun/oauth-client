@@ -35,7 +35,7 @@ func createGetParameter(param map[string]string) string {
 	return strings.Join(getParam, "&")
 }
 
-var templates = template.Must(template.ParseFiles("index.html", "sorry.html"))
+var templates = template.Must(template.ParseFiles("index.html", "sorry.html", "resource.html"))
 
 func renderTemplate(w http.ResponseWriter, tmpl string, value interface{}) {
 	fv := reflect.ValueOf(value)
