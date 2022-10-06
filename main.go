@@ -130,7 +130,7 @@ func fetchResourceHandler(w http.ResponseWriter, r *http.Request) {
 	client = &http.Client{}
 	ref_resp, _ := client.Do(req)
 	body, _ := ioutil.ReadAll(ref_resp.Body)
-	defer resp.Body.Close()
+	defer ref_resp.Body.Close()
 
 	if ref_resp.StatusCode >= 200 && ref_resp.StatusCode < 300 {
 		json.Unmarshal(body, &tokenInfo)
@@ -159,6 +159,41 @@ func resourceHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	postParam := url.Values{}
+	postParam.Set("token", token)
+
+	req, _ := http.NewRequest("POST", "http://localhost:8080/introspect", strings.NewReader(postParam.Encode()))
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("abcd", "terces")
+
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	defer resp.Body.Close()
+	type _introspection struct {
+		Active bool `json:"active"`
+	}
+	var introspectionResponse _introspection
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		json.Unmarshal(body, &introspectionResponse)
+	} else {
+		fmt.Printf("Unable to fetch access token, serverrespomce: %d\n", resp.StatusCode)
+		sorryPage(w, fmt.Sprintf("Unable to fetch access token, serverrespomce: %d\n", resp.StatusCode))
+		tokenInfo = TokenResponse{}
+		HAS_TOKEN = false
+		return
+	}
+	if !introspectionResponse.Active {
+		log.Println("Token is not active.")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	tokenParts := strings.Split(token, ".")
 	payload_b, _ := base64.URLEncoding.DecodeString(tokenParts[1])
 	type _Payload struct {
@@ -170,7 +205,7 @@ func resourceHandler(w http.ResponseWriter, r *http.Request) {
 		Jti string `json:"jti"`
 	}
 	var payload _Payload
-	err := json.Unmarshal(payload_b, &payload)
+	err = json.Unmarshal(payload_b, &payload)
 	if err != nil {
 		log.Println("Invalid payload format.")
 		w.WriteHeader(http.StatusBadRequest)
