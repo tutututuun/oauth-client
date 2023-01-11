@@ -16,12 +16,19 @@ import (
 )
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
+	var tokenString string
+	if len(tokenInfo.AccessToken) == 0 {
+		tokenString = "Header: None \n Payload: None \n Signature: None \n"
+	} else {
+		tokenParts := strings.Split(tokenInfo.AccessToken, ".")
+		tokenString = fmt.Sprintf("Header: %s.\n Payload: %s.\n Signature: %s\n", tokenParts[0], tokenParts[1], tokenParts[2])
+	}
 	renderTemplate(w, "index", struct {
 		Token        string
 		RefreshToken string
 		Scope        string
 	}{
-		Token:        tokenInfo.AccessToken,
+		Token:        tokenString,
 		RefreshToken: tokenInfo.RefreshToken,
 		Scope:        "None",
 	})
